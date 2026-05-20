@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OS Architecture Unveiled</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1209;
+    --paper: #faf7f0;
+    --parchment: #f0e8d0;
+    --gold: #c8922a;
+    --gold-light: #e8b84b;
+    --rust: #8b3a1a;
+    --teal: #1a5c6b;
+    --teal-light: #2a8fa3;
+    --muted: #6b5e4a;
+    --rule: #c8b89a;
+    --chapter-bg: #1a1209;
+    --accent-red: #8b2020;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #2c2416;
+    font-family: 'EB Garamond', serif;
+    font-size: 17px;
+    line-height: 1.85;
+    color: var(--ink);
+  }
+
+  /* ── BOOK SPINE / COVER ── */
+  .book-cover {
+    background: var(--chapter-bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 60px 40px;
+  }
+
+  .cover-border {
+    position: absolute;
+    inset: 24px;
+    border: 1.5px solid var(--gold);
+    pointer-events: none;
+  }
+  .cover-border::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 0.5px solid rgba(200,146,42,0.4);
+  }
+
+  .cover-subtitle-top {
+    font-family: 'Fira Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 40px;
+  }
+
+  .cover-emblem {
+    margin: 0 auto 40px;
+    width: 160px;
+    height: 160px;
+  }
+
+  .cover-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(42px, 6vw, 72px);
+    font-weight: 900;
+    color: var(--paper);
+    text-align: center;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    max-width: 700px;
+  }
+
+  .cover-title em {
+    font-style: italic;
+    color: var(--gold-light);
+    display: block;
+  }
+
+  .cover-rule {
+    width: 240px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 30px auto;
+  }
+
+  .cover-author {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 20px;
+    color: rgba(240,232,208,0.7);
+    letter-spacing: 1px;
+  }
+
+  .cover-publisher {
+    position: absolute;
+    bottom: 50px;
+    font-family: 'Fira Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(200,146,42,0.5);
+    text-transform: uppercase;
+  }
+
+  /* ── PAGE WRAPPER ── */
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    background: var(--paper);
+    padding: 80px 90px;
+    position: relative;
+  }
+
+  .page + .page {
+    border-top: 1px solid var(--rule);
+  }
+
+  /* ── TABLE OF CONTENTS ── */
+  .toc-page {
+    background: var(--parchment);
+    padding: 80px 90px;
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  .toc-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .toc-rule {
+    width: 120px;
+    height: 2px;
+    background: var(--gold);
+    margin: 0 auto 40px;
+  }
+
+  .toc-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--rule);
+    text-decoration: none;
+    color: inherit;
+  }
+  .toc-entry:hover .toc-ch { color: var(--teal); }
+
+  .toc-num {
+    font-family: 'Fira Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+    width: 40px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .toc-ch {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    flex: 1;
+    transition: color 0.2s;
+  }
+
+  .toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted var(--muted);
+    margin: 0 12px;
+    height: 1px;
+    align-self: center;
+    opacity: 0.4;
+  }
+
+  .toc-pg {
+    font-family: 'Fira Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    width: 30px;
+    text-align: right;
+  }
+
+  /* ── CHAPTER HEADER ── */
+  .chapter-header {
+    background: var(--chapter-bg);
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 70px 90px 60px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chapter-header::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle at 80% 20%, rgba(200,146,42,0.15) 0%, transparent 70%);
+  }
+
+  .ch-number {
+    font-family: 'Fira Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .ch-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 900;
+    color: var(--paper);
+    line-height: 1.15;
+    max-width: 600px;
+    margin-bottom: 24px;
+  }
+
+  .ch-title em { color: var(--gold-light); font-style: italic; }
+
+  .ch-lead {
+    font-family: 'EB Garamond', serif;
+    font-size: 17px;
+    color: rgba(240,232,208,0.7);
+    line-height: 1.75;
+    max-width: 560px;
+    border-left: 2px solid var(--gold);
+    padding-left: 20px;
+  }
+
+  /* ── TYPOGRAPHY ── */
+  .page h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 48px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .page h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--teal);
+    margin: 36px 0 12px;
+  }
+
+  .page p {
+    margin-bottom: 18px;
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  .drop-cap::first-letter {
+    float: left;
+    font-family: 'Playfair Display', serif;
+    font-size: 82px;
+    font-weight: 900;
+    line-height: 0.75;
+    padding-right: 12px;
+    padding-top: 8px;
+    color: var(--gold);
+  }
+
+  /* ── PULL QUOTE ── */
+  .pullquote {
+    border-left: 4px solid var(--gold);
+    border-right: 4px solid var(--gold);
+    padding: 24px 32px;
+    margin: 40px 0;
+    background: rgba(200,146,42,0.06);
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--teal);
+    line-height: 1.5;
+    position: relative;
+  }
+
+  .pullquote::before {
+    content: '\201C';
+    font-size: 80px;
+    color: var(--gold);
+    opacity: 0.3;
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    line-height: 1;
+    font-family: 'Playfair Display', serif;
+  }
+
+  /* ── INFO BOX ── */
+  .infobox {
+    background: var(--parchment);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--teal);
+    padding: 24px 28px;
+    margin: 32px 0;
+    border-radius: 0 0 4px 4px;
+  }
+
+  .infobox-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 12px;
+  }
+
+  .infobox p { margin-bottom: 8px; font-size: 15.5px; }
+
+  /* ── TABLES ── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 32px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+
+  thead tr {
+    background: var(--chapter-bg);
+    color: var(--paper);
+  }
+
+  thead th {
+    font-family: 'Fira Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 14px 18px;
+    text-align: left;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  tbody tr:nth-child(even) { background: rgba(200,146,42,0.05); }
+  tbody tr:hover { background: rgba(26,92,107,0.06); }
+
+  tbody td {
+    padding: 12px 18px;
+    border: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+
+  tbody td:first-child {
+    font-family: 'Fira Mono', monospace;
+    font-size: 13px;
+    color: var(--teal);
+    white-space: nowrap;
+  }
+
+  .table-caption {
+    font-style: italic;
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* ── FIGURES / IMAGES ── */
+  .figure {
+    margin: 40px 0;
+    text-align: center;
+  }
+
+  .figure img {
+    max-width: 100%;
+    border: 1px solid var(--rule);
+    box-shadow: 4px 4px 20px rgba(0,0,0,0.12);
+  }
+
+  .figure-caption {
+    font-style: italic;
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  .figure-caption strong {
+    font-style: normal;
+    font-family: 'Fira Mono', monospace;
+    font-size: 12px;
+    color: var(--teal);
+  }
+
+  /* ── SVG DIAGRAMS ── */
+  .diagram-wrap {
+    margin: 40px 0;
+    background: var(--parchment);
+    border: 1px solid var(--rule);
+    padding: 32px;
+    border-radius: 2px;
+  }
+
+  .diagram-title {
+    font-family: 'Fira Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--teal);
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    float: right;
+    width: 220px;
+    margin: 0 0 24px 32px;
+    background: var(--chapter-bg);
+    color: var(--paper);
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .sidebar-title {
+    font-family: 'Fira Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  .clearfix::after { content: ''; display: table; clear: both; }
+
+  /* ── PAGE FOOTER / RUNNING HEAD ── */
+  .running-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 90px;
+    background: var(--chapter-bg);
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  .running-head span {
+    font-family: 'Fira Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: rgba(200,146,42,0.6);
+    text-transform: uppercase;
+  }
+
+  /* ── SECTION DIVIDER ── */
+  .section-divider {
+    text-align: center;
+    margin: 48px 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--rule));
+  }
+  .section-divider::after {
+    background: linear-gradient(90deg, var(--rule), transparent);
+  }
+
+  .divider-ornament {
+    color: var(--gold);
+    font-size: 18px;
+  }
+
+  /* ── FEATURE HIGHLIGHT ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin: 32px 0;
+  }
+
+  .feature-card {
+    background: var(--parchment);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--gold);
+    padding: 20px;
+  }
+
+  .feature-card h4 {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+
+  .feature-card p { font-size: 14.5px; margin-bottom: 0; }
+
+  /* ── CHAPTER PAGE NUMBERS ── */
+  .page-num {
+    text-align: center;
+    padding: 24px;
+    font-family: 'Fira Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    max-width: 820px;
+    margin: 0 auto;
+    background: var(--paper);
+    border-top: 1px solid var(--rule);
+  }
+
+  /* ── CITATIONS ── */
+  .citations {
+    background: #f5f0e8;
+    padding: 40px 90px;
+    max-width: 820px;
+    margin: 0 auto;
+    border-top: 2px solid var(--gold);
+  }
+
+  .citations h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+
+  .citation-entry {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--muted);
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--rule);
+    padding-left: 24px;
+    text-indent: -24px;
+  }
+
+  /* ── CODE ── */
+  code {
+    font-family: 'Fira Mono', monospace;
+    font-size: 13px;
+    background: rgba(26,92,107,0.08);
+    color: var(--teal);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  @media print {
+    body { background: white; }
+    .book-cover, .chapter-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     BOOK COVER
+════════════════════════════════════════════════════════════ -->
+<div class="book-cover">
+  <div class="cover-border"></div>
+  <div class="cover-subtitle-top">A Comprehensive Study</div>
+
+  <!-- SVG Emblem -->
+  <div class="cover-emblem">
+    <svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="80" cy="80" r="72" fill="none" stroke="#c8922a" stroke-width="1"/>
+      <circle cx="80" cy="80" r="60" fill="none" stroke="rgba(200,146,42,0.4)" stroke-width="0.5"/>
+      <!-- Concentric rings representing OS layers -->
+      <circle cx="80" cy="80" r="18" fill="#c8922a" opacity="0.9"/>
+      <circle cx="80" cy="80" r="32" fill="none" stroke="#c8922a" stroke-width="2"/>
+      <circle cx="80" cy="80" r="46" fill="none" stroke="#c8922a" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <circle cx="80" cy="80" r="58" fill="none" stroke="rgba(200,146,42,0.5)" stroke-width="1" stroke-dasharray="2 6"/>
+      <!-- Gear teeth on outer ring -->
+      <text x="80" y="84" text-anchor="middle" font-family="'Playfair Display'" font-size="14" fill="#1a1209" font-weight="bold">OS</text>
+      <!-- Radial lines -->
+      <line x1="80" y1="22" x2="80" y2="34" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="80" y1="126" x2="80" y2="138" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="22" y1="80" x2="34" y2="80" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="126" y1="80" x2="138" y2="80" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="37" y1="37" x2="46" y2="46" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="123" y1="123" x2="114" y2="114" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="123" y1="37" x2="114" y2="46" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="37" y1="123" x2="46" y2="114" stroke="#c8922a" stroke-width="1.5"/>
+    </svg>
+  </div>
+
+  <h1 class="cover-title">OS Architecture<em>Unveiled</em></h1>
+
+  <div class="cover-rule"></div>
+  <p class="cover-author">A Complete Guide to Operating System Design &amp; Principles</p>
+  <div class="cover-publisher">Academic Press · Computer Science Series</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+════════════════════════════════════════════════════════════ -->
+<div class="toc-page">
+  <h2 class="toc-title">Table of Contents</h2>
+  <div class="toc-rule"></div>
+
+  <a href="#ch1" class="toc-entry"><span class="toc-num">01</span><span class="toc-ch">Introduction to Operating Systems</span><span class="toc-dots"></span><span class="toc-pg">3</span></a>
+  <a href="#ch2" class="toc-entry"><span class="toc-num">02</span><span class="toc-ch">OS Architecture: Layers &amp; Components</span><span class="toc-dots"></span><span class="toc-pg">8</span></a>
+  <a href="#ch3" class="toc-entry"><span class="toc-num">03</span><span class="toc-ch">The Kernel: Heart of the OS</span><span class="toc-dots"></span><span class="toc-pg">14</span></a>
+  <a href="#ch4" class="toc-entry"><span class="toc-num">04</span><span class="toc-ch">User Interface: GUI &amp; CLI</span><span class="toc-dots"></span><span class="toc-pg">20</span></a>
+  <a href="#ch5" class="toc-entry"><span class="toc-num">05</span><span class="toc-ch">Hardware &amp; Software Resource Management</span><span class="toc-dots"></span><span class="toc-pg">26</span></a>
+  <a href="#ch6" class="toc-entry"><span class="toc-num">06</span><span class="toc-ch">Process &amp; Memory Management</span><span class="toc-dots"></span><span class="toc-pg">33</span></a>
+  <a href="#ch7" class="toc-entry"><span class="toc-num">07</span><span class="toc-ch">File System Management</span><span class="toc-dots"></span><span class="toc-pg">42</span></a>
+  <a href="#ch8" class="toc-entry"><span class="toc-num">08</span><span class="toc-ch">Security in Operating Systems</span><span class="toc-dots"></span><span class="toc-pg">49</span></a>
+  <a href="#ch9" class="toc-entry"><span class="toc-num">09</span><span class="toc-ch">System Calls &amp; APIs</span><span class="toc-dots"></span><span class="toc-pg">57</span></a>
+  <a href="#ch10" class="toc-entry"><span class="toc-num">10</span><span class="toc-ch">Specialized OS: RTOS, Distributed &amp; Mobile</span><span class="toc-dots"></span><span class="toc-pg">63</span></a>
+  <a href="#ch11" class="toc-entry"><span class="toc-num">11</span><span class="toc-ch">Virtualization &amp; Cloud Computing</span><span class="toc-dots"></span><span class="toc-pg">72</span></a>
+  <a href="#ch12" class="toc-entry"><span class="toc-num">12</span><span class="toc-ch">Case Studies: Windows, Linux, macOS</span><span class="toc-dots"></span><span class="toc-pg">80</span></a>
+  <a href="#ch13" class="toc-entry"><span class="toc-num">13</span><span class="toc-ch">Emerging Trends &amp; Future Directions</span><span class="toc-dots"></span><span class="toc-pg">89</span></a>
+  <a href="#refs" class="toc-entry"><span class="toc-num"></span><span class="toc-ch">References &amp; Bibliography</span><span class="toc-dots"></span><span class="toc-pg">96</span></a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 1 — INTRODUCTION
+════════════════════════════════════════════════════════════ -->
+<div id="ch1" class="chapter-header">
+  <div class="ch-number">Chapter One</div>
+  <h1 class="ch-title">Introduction to <em>Operating Systems</em></h1>
+  <p class="ch-lead">The operating system forms the invisible foundation upon which every computing experience is built — orchestrating hardware, software, and human interaction in perfect concert.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The term of an operating system (OS) is often used to describe a very complex piece of software which acts as a mediator between the computer's hardware and application programs. The OS is one of the fundamental types of system software and performs many critical tasks that enable a computer to function properly and allow users to use computer applications efficiently. An operating system is essentially a system program that controls and manages computer hardware resources while allowing user programs to run efficiently.</p>
+
+  <p>The importance of an operating system within computing is multifold. Firstly, by managing hardware resources such as the CPU, memory, storage devices, and input/output peripherals, an operating system ensures the effective utilization of these components. Rather than allowing applications to directly access hardware, which could lead to inefficiencies and conflicts, the OS abstracts this complexity. It allocates resources through scheduling algorithms and memory management techniques, ensuring that applications run smoothly and concurrently without disrupting one another.</p>
+
+  <!-- Inline image from web -->
+  <div class="figure">
+    <svg viewBox="0 0 420 280" xmlns="http://www.w3.org/2000/svg" style="max-width:420px;width:100%;display:block;margin:0 auto;background:#faf7f0;border:1px solid #c8b89a;padding:8px;">
+      <!-- Title -->
+      <text x="210" y="22" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="11" fill="#1a5c6b" letter-spacing="2">OS PLACEMENT MODEL</text>
+      <!-- User Applications -->
+      <rect x="30" y="34" width="360" height="44" rx="5" fill="#1a5c6b"/>
+      <text x="210" y="54" text-anchor="middle" font-family="'Playfair Display',serif" font-size="13" fill="white" font-weight="bold">User Applications</text>
+      <text x="210" y="70" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="rgba(255,255,255,0.6)">Browser · Office Suite · Games · IDEs</text>
+      <!-- Arrow -->
+      <polygon points="210,84 204,96 216,96" fill="#c8922a"/>
+      <line x1="210" y1="96" x2="210" y2="104" stroke="#c8922a" stroke-width="2"/>
+      <!-- OS Layer -->
+      <rect x="30" y="104" width="360" height="64" rx="5" fill="#c8922a"/>
+      <text x="210" y="127" text-anchor="middle" font-family="'Playfair Display',serif" font-size="15" fill="#1a1209" font-weight="bold">Operating System</text>
+      <text x="210" y="145" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="rgba(26,18,9,0.7)">Process Mgmt · Memory · File System · Security</text>
+      <text x="210" y="162" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="rgba(26,18,9,0.7)">Device Drivers · Networking · System Calls</text>
+      <!-- Arrow -->
+      <polygon points="210,175 204,187 216,187" fill="#c8922a"/>
+      <line x1="210" y1="187" x2="210" y2="195" stroke="#c8922a" stroke-width="2"/>
+      <!-- Hardware Layer -->
+      <rect x="30" y="195" width="360" height="60" rx="5" fill="#1a1209"/>
+      <text x="210" y="218" text-anchor="middle" font-family="'Playfair Display',serif" font-size="13" fill="#c8922a" font-weight="bold">Computer Hardware</text>
+      <text x="210" y="238" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="rgba(200,146,42,0.6)">CPU  ·  RAM  ·  Storage  ·  GPU  ·  I/O</text>
+      <!-- Bracket labels -->
+      <line x1="14" y1="34" x2="14" y2="78" stroke="#2a8fa3" stroke-width="1.5"/>
+      <line x1="14" y1="104" x2="14" y2="168" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="14" y1="195" x2="14" y2="255" stroke="#8b3a1a" stroke-width="1.5"/>
+      <text x="8" y="58" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#2a8fa3" transform="rotate(-90,8,58)">User</text>
+      <text x="8" y="138" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#c8922a" transform="rotate(-90,8,138)">System</text>
+      <text x="8" y="225" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#8b3a1a" transform="rotate(-90,8,225)">HW</text>
+    </svg>
+    <p class="figure-caption"><strong>Figure 1.1</strong> — The Operating System as an intermediary layer between hardware and user applications.</p>
+  </div>
+
+  <h2>Core Responsibilities of an OS</h2>
+
+  <p>Operating systems manage hardware and software resources for a computer and ensure that these resources are used efficiently. Resource management refers to hardware as well as to software, and the services an OS provides to user applications are delivered via Application Programming Interfaces (APIs). An application uses a service of an operating system — for instance to manage processes — and the OS then manages the resources required by that process. For instance, the OS decides which part of the memory can be used by a process, and which part is already being used by another process.</p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>Resource Management</h4>
+      <p>Allocates CPU time, memory, and I/O devices efficiently across all running processes and applications.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Security &amp; Protection</h4>
+      <p>Provides authentication, access control, encryption, and process isolation to guard against threats.</p>
+    </div>
+    <div class="feature-card">
+      <h4>User Interface</h4>
+      <p>Presents graphical (GUI) or command-line (CLI) interfaces enabling humans to interact with the system.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Hardware Abstraction</h4>
+      <p>Hides low-level hardware complexity through device drivers and system calls.</p>
+    </div>
+  </div>
+
+  <div class="pullquote">
+    An operating system is not merely a program — it is the sovereign of every computation, arbitrating between the raw power of hardware and the aspirations of software.
+  </div>
+
+  <p>There is also the importance of security in operating systems. Today all operating systems support various features that protect the operating system and the data on the computer from unauthorized access and damage by malicious programs. These can include things like user authentication, access control and data encryption. Operating systems also isolate processes and enforce permissions on file access. If the operating system is set up with adequate security policies then it can go a long way to protecting a computer from viruses and other security threats.</p>
+
+  <p>Furthermore, the user interface is of great importance when designing an Operating System. Not only do we interact with programs and files via the user interface — it is also the interface with the operating system itself. For this reason the user interface should be designed in such a way that the user is able to use the computer as easily as possible and complete tasks as quickly and efficiently as possible.</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption style="font-style:italic;font-size:14px;padding:8px;color:var(--muted);">Table 1.1 — Key Operating System Functions</caption>
+      <thead>
+        <tr>
+          <th>Function</th>
+          <th>Description</th>
+          <th>Examples</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Process Management</td>
+          <td>Creating, scheduling, and terminating processes; multitasking</td>
+          <td>Round Robin, Priority Scheduling, Fork/Exec</td>
+        </tr>
+        <tr>
+          <td>Memory Management</td>
+          <td>Allocating and deallocating memory; virtual memory</td>
+          <td>Paging, Segmentation, VMM</td>
+        </tr>
+        <tr>
+          <td>File System</td>
+          <td>Organizing, storing and retrieving data on storage media</td>
+          <td>NTFS, ext4, APFS, FAT32</td>
+        </tr>
+        <tr>
+          <td>I/O Management</td>
+          <td>Managing communication with peripheral devices</td>
+          <td>Device Drivers, Buffering, Caching</td>
+        </tr>
+        <tr>
+          <td>Security</td>
+          <td>Authentication, authorization, encryption</td>
+          <td>UAC, ACL, FileVault, SELinux</td>
+        </tr>
+        <tr>
+          <td>Networking</td>
+          <td>Managing network connections and protocols</td>
+          <td>TCP/IP Stack, Sockets, DNS</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="page-num">— 3 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 2 — OS ARCHITECTURE
+════════════════════════════════════════════════════════════ -->
+<div id="ch2" class="chapter-header">
+  <div class="ch-number">Chapter Two</div>
+  <h1 class="ch-title">OS Architecture: <em>Layers &amp; Components</em></h1>
+  <p class="ch-lead">The architecture of an operating system reveals how software layers cooperate to transform raw silicon into a programmable universe of boundless possibility.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The architecture of an operating system (OS) is an interrelated group of several layers or components of system software. These components function together to manage the various hardware or software resources of a computer, as well as to provide security and user interfaces to applications, and thus form the core of any computing system. An OS architecture can therefore be perceived as a number of interrelated components which together facilitate the efficient management of a variety of hardware or software resources.</p>
+
+  <h2>Architectural Models</h2>
+
+  <h3>Monolithic Architecture</h3>
+  <p>A monolithic architecture is a single large kernel that contains all core OS functions. This could include a memory manager, process scheduler, and device drivers — all running in the same address space. There is the potential for very fast communication between different parts of the kernel as they are using shared memory and are all part of the same process. However, this does create complexity as the kernel grows in size and more modules are added. A bug in one part of the kernel could cause problems for the entire OS, even resulting in a system crash with data loss.</p>
+
+  <h3>Microkernel Architecture</h3>
+  <p>A microkernel is the simplest form of an operating system. A small kernel performs the necessary services to the system while most other functions are performed by applications running in user space. Many device drivers, file systems, and networking protocols can run in user space. Their interaction with the kernel is by means of inter-process communication (IPC). This approach improves stability and modularity, though it may introduce performance overhead due to additional message-passing.</p>
+
+  <!-- OS Layer Diagram SVG -->
+  <div class="diagram-wrap">
+    <div class="diagram-title">Figure 2.1 — OS Architectural Layers</div>
+    <svg viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;display:block;margin:0 auto;">
+      <!-- Hardware Layer -->
+      <rect x="40" y="310" width="560" height="48" rx="4" fill="#1a1209"/>
+      <text x="320" y="340" text-anchor="middle" fill="#c8922a" font-family="'Fira Mono'" font-size="13" letter-spacing="3">HARDWARE ( CPU · RAM · Storage · I/O )</text>
+
+      <!-- Kernel Layer -->
+      <rect x="40" y="248" width="560" height="50" rx="4" fill="#1a5c6b"/>
+      <text x="320" y="278" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="13" letter-spacing="2">KERNEL ( Process · Memory · Device Management )</text>
+
+      <!-- System Call Interface -->
+      <rect x="40" y="192" width="560" height="44" rx="4" fill="#2a8fa3"/>
+      <text x="320" y="219" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="13" letter-spacing="2">SYSTEM CALL INTERFACE</text>
+
+      <!-- System Libraries -->
+      <rect x="40" y="136" width="560" height="44" rx="4" fill="#c8922a" opacity="0.85"/>
+      <text x="320" y="163" text-anchor="middle" fill="#1a1209" font-family="'Fira Mono'" font-size="13" letter-spacing="2">SYSTEM LIBRARIES &amp; APIs</text>
+
+      <!-- Shell / UI -->
+      <rect x="40" y="80" width="560" height="44" rx="4" fill="#8b3a1a" opacity="0.85"/>
+      <text x="320" y="107" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="13" letter-spacing="2">SHELL / USER INTERFACE ( GUI · CLI )</text>
+
+      <!-- Applications -->
+      <rect x="40" y="24" width="560" height="44" rx="4" fill="#4a4a2a"/>
+      <text x="320" y="51" text-anchor="middle" fill="#e8d8a0" font-family="'Fira Mono'" font-size="13" letter-spacing="2">USER APPLICATIONS</text>
+
+      <!-- Arrows between layers -->
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="rgba(200,146,42,0.6)"/>
+        </marker>
+      </defs>
+      <line x1="620" y1="68" x2="620" y2="360" stroke="rgba(200,146,42,0.3)" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="636" y="210" text-anchor="middle" fill="rgba(200,146,42,0.6)" font-size="11" font-family="'Fira Mono'" transform="rotate(90,636,210)">ABSTRACTION LAYERS</text>
+    </svg>
+  </div>
+
+  <h2>Key Architectural Comparison</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Architecture</th>
+          <th>Kernel Size</th>
+          <th>Performance</th>
+          <th>Reliability</th>
+          <th>Examples</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Monolithic</td>
+          <td>Large (all in kernel space)</td>
+          <td>High (shared memory)</td>
+          <td>Lower (a bug crashes all)</td>
+          <td>Linux, early UNIX</td>
+        </tr>
+        <tr>
+          <td>Microkernel</td>
+          <td>Small (minimal core)</td>
+          <td>Lower (IPC overhead)</td>
+          <td>Higher (isolated modules)</td>
+          <td>QNX, Mach, MINIX</td>
+        </tr>
+        <tr>
+          <td>Hybrid</td>
+          <td>Moderate</td>
+          <td>Balanced</td>
+          <td>Balanced</td>
+          <td>Windows NT, macOS XNU</td>
+        </tr>
+        <tr>
+          <td>Exokernel</td>
+          <td>Minimal (hardware abstraction only)</td>
+          <td>Very High</td>
+          <td>Variable</td>
+          <td>MIT Exokernel</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 2.1 — Comparison of OS Architectural Approaches</p>
+  </div>
+
+  <div class="infobox">
+    <div class="infobox-title">★ Key Concept: Separation of Concerns</div>
+    <p>The various layers of abstraction in an OS work to isolate and hide the lower levels of the system from the higher levels, as well as from the applications and users. This facilitates the separate, independent functions of the various components — enabling modular development, easier debugging, and improved security.</p>
+  </div>
+
+  <p>Another very important part of the OS architecture is the file system — organizing data into files and directories, managing permissions, and ensuring data integrity. The security layer spans all architectural levels, with authentication, access control, and data encryption woven throughout the system stack.</p>
+</div>
+<div class="page-num">— 8 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 3 — THE KERNEL
+════════════════════════════════════════════════════════════ -->
+<div id="ch3" class="chapter-header">
+  <div class="ch-number">Chapter Three</div>
+  <h1 class="ch-title">The Kernel: <em>Heart of the OS</em></h1>
+  <p class="ch-lead">Deep within every operating system lies the kernel — the sovereign core that translates human commands into electronic impulses, managing every resource with unrelenting precision.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The kernel, or core of the operating system (OS), is the central piece of software within a computer's OS that manages the system's resources by interacting directly with the computer's hardware while providing programs with a logical abstraction of the hardware. Thus the kernel is the heart of an operating system as it manages the services and resources made available to running application programs (Tanenbaum &amp; Bos, 2015). The kernel is the lowest level software in the system and forms the basis upon which user space programs and the rest of the OS are built.</p>
+
+  <div class="figure">
+    <svg viewBox="0 0 420 300" xmlns="http://www.w3.org/2000/svg" style="max-width:420px;width:100%;display:block;margin:0 auto;background:#faf7f0;border:1px solid #c8b89a;padding:8px;">
+      <text x="210" y="20" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="11" fill="#1a5c6b" letter-spacing="2">KERNEL LAYOUT</text>
+      <!-- User Space box -->
+      <rect x="20" y="32" width="380" height="130" rx="5" fill="#e8f4f8" stroke="#2a8fa3" stroke-width="1.5"/>
+      <text x="210" y="52" text-anchor="middle" font-family="'Playfair Display',serif" font-size="13" fill="#1a5c6b" font-weight="bold">User Space</text>
+      <!-- User space apps -->
+      <rect x="36" y="60" width="100" height="36" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="86" y="83" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="white">Process A</text>
+      <rect x="152" y="60" width="100" height="36" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="202" y="83" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="white">Process B</text>
+      <rect x="268" y="60" width="116" height="36" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="326" y="83" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="10" fill="white">Shell / GUI</text>
+      <!-- System call arrows -->
+      <line x1="86" y1="96" x2="86" y2="126" stroke="#c8922a" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="202" y1="96" x2="202" y2="126" stroke="#c8922a" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="326" y1="96" x2="326" y2="126" stroke="#c8922a" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="210" y="118" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#c8922a" letter-spacing="2">SYSTEM CALLS</text>
+      <!-- Kernel Space box -->
+      <rect x="20" y="174" width="380" height="90" rx="5" fill="#1a1209" stroke="#c8922a" stroke-width="1.5"/>
+      <text x="210" y="194" text-anchor="middle" font-family="'Playfair Display',serif" font-size="13" fill="#c8922a" font-weight="bold">Kernel Space</text>
+      <rect x="36" y="202" width="80" height="28" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="76" y="220" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#1a1209">Scheduler</text>
+      <rect x="128" y="202" width="80" height="28" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="168" y="220" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#1a1209">Memory</text>
+      <rect x="220" y="202" width="80" height="28" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="260" y="220" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#1a1209">Drivers</text>
+      <rect x="312" y="202" width="72" height="28" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="348" y="220" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="#1a1209">IPC</text>
+      <!-- Hardware -->
+      <rect x="20" y="276" width="380" height="18" rx="3" fill="#4a4a2a"/>
+      <text x="210" y="289" text-anchor="middle" font-family="'Fira Mono',monospace" font-size="9" fill="rgba(200,146,42,0.7)" letter-spacing="3">HARDWARE ABSTRACTION LAYER</text>
+    </svg>
+    <p class="figure-caption"><strong>Figure 3.1</strong> — The Kernel layout showing the boundary between user space and kernel space.</p>
+  </div>
+
+  <h2>Kernel Responsibilities</h2>
+
+  <h3>Process Scheduling</h3>
+  <p>The kernel schedules processes (i.e., it supports multitasking) and allocates the CPU time to processes on the basis of a scheduling algorithm. Most operating systems use preemptive scheduling — a process can be preempted by another at any time. Time slicing and priority scheduling are the two methods used by the kernel to manage CPU time. In this way, the kernel is able to manage the computer hardware efficiently.</p>
+
+  <h3>Memory Management</h3>
+  <p>The kernel uses virtual memory management to make it possible for multiple processes to be running on a computer at the same time without interference. Virtual memory allows the kernel to swap out parts of the physical memory to disk as needed, thus providing a computer with the ability to support many processes when physical memory is not sufficient.</p>
+
+  <h3>System Call Handling</h3>
+  <p>Another critical function is the management of system calls — the primary interface through which user applications communicate with the underlying hardware or request services from the kernel. By providing a defined set of system calls, the kernel abstracts the complexities of hardware interactions, presenting a simplified interface for application developers.</p>
+
+  <!-- Kernel Modes SVG -->
+  <div class="diagram-wrap">
+    <div class="diagram-title">Figure 3.2 — User Mode vs. Kernel Mode Privilege Separation</div>
+    <svg viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;display:block;margin:0 auto;">
+      <!-- User space -->
+      <rect x="20" y="20" width="260" height="220" rx="6" fill="#f5f0e8" stroke="#c8b89a" stroke-width="1.5"/>
+      <text x="150" y="50" text-anchor="middle" font-family="'Playfair Display'" font-size="15" font-weight="bold" fill="#1a5c6b">USER SPACE</text>
+      <rect x="50" y="66" width="200" height="40" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="150" y="91" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">Application A</text>
+      <rect x="50" y="116" width="200" height="40" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="150" y="141" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">Application B</text>
+      <rect x="50" y="166" width="200" height="40" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="150" y="191" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">Shell / GUI</text>
+
+      <!-- System call boundary -->
+      <line x1="285" y1="20" x2="285" y2="240" stroke="#c8922a" stroke-width="2" stroke-dasharray="6 3"/>
+      <text x="285" y="14" text-anchor="middle" fill="#c8922a" font-family="'Fira Mono'" font-size="10" letter-spacing="1">SYSCALL BOUNDARY</text>
+
+      <!-- Kernel space -->
+      <rect x="310" y="20" width="270" height="220" rx="6" fill="#1a1209"/>
+      <text x="445" y="50" text-anchor="middle" font-family="'Playfair Display'" font-size="15" font-weight="bold" fill="#c8922a">KERNEL SPACE</text>
+      <rect x="330" y="66" width="220" height="36" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="440" y="89" text-anchor="middle" fill="#1a1209" font-family="'Fira Mono'" font-size="11">Process Scheduler</text>
+      <rect x="330" y="110" width="220" height="36" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="440" y="133" text-anchor="middle" fill="#1a1209" font-family="'Fira Mono'" font-size="11">Memory Manager</text>
+      <rect x="330" y="154" width="220" height="36" rx="3" fill="#c8922a" opacity="0.7"/>
+      <text x="440" y="177" text-anchor="middle" fill="#1a1209" font-family="'Fira Mono'" font-size="11">Device Drivers</text>
+      <rect x="330" y="198" width="220" height="30" rx="3" fill="#8b3a1a" opacity="0.9"/>
+      <text x="440" y="217" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">Hardware Abstraction</text>
+
+      <!-- Arrows for syscall -->
+      <path d="M 260 110 Q 280 110 300 110" stroke="#c8922a" stroke-width="1.5" fill="none" marker-end="url(#arr2)"/>
+      <path d="M 300 145 Q 280 145 260 145" stroke="rgba(200,146,42,0.5)" stroke-width="1.5" fill="none" marker-end="url(#arr2)"/>
+      <defs>
+        <marker id="arr2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#c8922a"/>
+        </marker>
+      </defs>
+      <text x="280" y="108" text-anchor="middle" fill="#c8922a" font-size="9" font-family="'Fira Mono'">syscall</text>
+      <text x="280" y="158" text-anchor="middle" fill="rgba(200,146,42,0.7)" font-size="9" font-family="'Fira Mono'">return</text>
+    </svg>
+  </div>
+
+  <h3>Security Enforcement: Privilege Separation</h3>
+  <p>In order to ensure the security of a system, the kernel enforces access control for users through a privilege separation model, which allows user mode and kernel mode. Applications running in user mode have only very limited access to the resources provided by the operating system. The kernel mode, on the other hand, is able to access all parts of the system hardware. This prevents malicious users from executing commands that could harm the system.</p>
+
+  <div class="infobox">
+    <div class="infobox-title">★ Kernel Sub-systems at a Glance</div>
+    <p><strong>Process Management</strong> — creates, schedules, and terminates processes and threads.</p>
+    <p><strong>Memory Management</strong> — virtual memory, paging, segmentation, MMU control.</p>
+    <p><strong>I/O Management</strong> — device drivers, interrupt handling, buffering, caching.</p>
+    <p><strong>File System</strong> — VFS layer, file metadata, permissions, disk allocation.</p>
+    <p><strong>Security Sub-system</strong> — access control, cryptography services, audit logging.</p>
+    <p><strong>Network Stack</strong> — TCP/IP implementation, socket management, firewall hooks.</p>
+  </div>
+</div>
+<div class="page-num">— 14 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 4 — USER INTERFACE
+════════════════════════════════════════════════════════════ -->
+<div id="ch4" class="chapter-header">
+  <div class="ch-number">Chapter Four</div>
+  <h1 class="ch-title">User Interface: <em>GUI &amp; CLI</em></h1>
+  <p class="ch-lead">The user interface is the window through which human thought meets machine logic — shaping productivity, accessibility, and the very experience of computing itself.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The user interface is a critical component of an operating system and represents the way in which a user interacts with a system. The user interface of an operating system can take many different forms, broadly grouped into two main categories: graphical user interfaces and command-line interfaces. As outlined by O'Regan (2018), the user interface is an important component of an operating system, and in order to assist users in completing tasks, the interface must be designed to be efficient and support the goals of the user.</p>
+
+  <div class="figure">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Tux.svg/240px-Tux.svg.png" alt="Linux Tux" style="background:transparent;max-width:120px;">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Windows_logo_-_2012.svg/240px-Windows_logo_-_2012.svg.png" alt="Windows Logo" style="background:transparent;max-width:120px;margin:0 32px;">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/195px-Apple_logo_black.svg.png" alt="Apple Logo" style="background:transparent;max-width:80px;">
+    <p class="figure-caption"><strong>Figure 4.1</strong> — Major operating systems, each with a distinctive user interface philosophy.</p>
+  </div>
+
+  <h2>Graphical User Interface (GUI)</h2>
+  <p>The graphical user interface, or GUI, is the more typical interface which makes use of icons, pictures, and windows on screen. The interface is generally used in conjunction with a pointing device and a screen. The user can use a mouse or even a touchscreen to click on items such as icons and buttons. The GUI greatly reduces the cognitive barrier for non-technical users, enabling them to perform complex operations through visual metaphors.</p>
+
+  <h2>Command-Line Interface (CLI)</h2>
+  <p>A command-line interface, or CLI, is a text-based interface generally used to access a variety of functions by entering commands and receiving results. CLIs are typically more efficient for experienced users or system administrators who need to complete specific tasks in a timely manner. The CLI provides the greatest degree of control and flexibility, and virtually any function can be automated with the use of scripts.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Attribute</th>
+          <th>GUI</th>
+          <th>CLI</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ease of Use</td>
+          <td>High — intuitive for beginners</td>
+          <td>Low — requires knowledge of commands</td>
+        </tr>
+        <tr>
+          <td>Efficiency</td>
+          <td>Moderate — mouse-driven</td>
+          <td>High — keyboard shortcuts, scripting</td>
+        </tr>
+        <tr>
+          <td>Resource Usage</td>
+          <td>Higher (rendering graphics)</td>
+          <td>Minimal</td>
+        </tr>
+        <tr>
+          <td>Automation</td>
+          <td>Limited</td>
+          <td>Excellent via scripts/batch files</td>
+        </tr>
+        <tr>
+          <td>Remote Access</td>
+          <td>Requires remote desktop protocols</td>
+          <td>SSH — lightweight, widely used</td>
+        </tr>
+        <tr>
+          <td>Target Users</td>
+          <td>General consumers</td>
+          <td>Developers, administrators</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 4.1 — GUI vs. CLI: A Comparative Analysis</p>
+  </div>
+
+  <div class="pullquote">
+    A well-designed interface reduces the cognitive load on the user, allowing for seamless task execution — creating an environment where humans and machines collaborate effortlessly.
+  </div>
+
+  <h2>User Interface Security</h2>
+  <p>User Interface security is another very important aspect, given the increasing misuse of computers by malicious individuals. The security of an Operating System interface is measured in terms of how easy it is for a user to use the interface securely. An OS interface should allow users to authenticate themselves, authorize access to system and application resources, and perform secure transactions. One of the biggest challenges an OS designer faces is striking a balance between interface security and usability.</p>
+
+  <div class="infobox">
+    <div class="infobox-title">★ UX &amp; Productivity</div>
+    <p>The significance of the user interface extends beyond aesthetics and functionality; it fundamentally impacts user experience, encompassing efficiency, satisfaction, and productivity. Elements like consistency, responsiveness, and feedback mechanisms contribute to creating an environment where users can interact with the system fluidly. Conversely, a poorly designed UI can lead to frustration, errors, and decreased engagement.</p>
+  </div>
+</div>
+<div class="page-num">— 20 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 5 — RESOURCE MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div id="ch5" class="chapter-header">
+  <div class="ch-number">Chapter Five</div>
+  <h1 class="ch-title">Hardware &amp; Software <em>Resource Management</em></h1>
+  <p class="ch-lead">Every CPU cycle, every byte of memory, every I/O transaction — the OS conducts this symphony of finite resources with meticulous, algorithmic precision.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">One primary role of an operating system in hardware management is the orchestration of the CPU, memory, and input/output devices. The CPU, being the heart of computation, requires precise scheduling to maximize performance. Operating systems employ various scheduling algorithms, such as round-robin, priority scheduling, and shortest job first, to determine the sequence in which processes are allocated CPU time. These algorithms are critical, as they not only enhance responsiveness for interactive applications but also improve throughput for batch processing.</p>
+
+  <h2>CPU Scheduling Algorithms</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Algorithm</th>
+          <th>Strategy</th>
+          <th>Best For</th>
+          <th>Drawback</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>FCFS</td>
+          <td>First-Come-First-Served, non-preemptive</td>
+          <td>Batch systems</td>
+          <td>Convoy effect; poor for short jobs</td>
+        </tr>
+        <tr>
+          <td>SJF / SJN</td>
+          <td>Shortest Job First</td>
+          <td>Batch with known burst times</td>
+          <td>Starvation of long processes</td>
+        </tr>
+        <tr>
+          <td>Round Robin</td>
+          <td>Fixed time quantum, cyclic</td>
+          <td>Time-sharing systems</td>
+          <td>High context switch overhead</td>
+        </tr>
+        <tr>
+          <td>Priority</td>
+          <td>Highest priority executes first</td>
+          <td>Real-time &amp; critical systems</td>
+          <td>Starvation of low-priority tasks</td>
+        </tr>
+        <tr>
+          <td>Multilevel Queue</td>
+          <td>Separate queues per priority class</td>
+          <td>Mixed workloads</td>
+          <td>Inflexible queue assignment</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 5.1 — CPU Scheduling Algorithms Compared</p>
+  </div>
+
+  <h2>Memory Management</h2>
+  <p>The OS manages the memory or RAM of the computer to ensure that all processes have enough memory to complete their tasks. Memory or RAM is dynamically split up into various sizes of work spaces and allocated to processes as they are executed by the CPU. Key techniques include:</p>
+
+  <!-- Memory Management SVG Diagram -->
+  <div class="diagram-wrap">
+    <div class="diagram-title">Figure 5.1 — Virtual Memory Architecture</div>
+    <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;display:block;margin:0 auto;">
+      <!-- Process Virtual Address Space -->
+      <rect x="30" y="30" width="160" height="220" rx="4" fill="#f0e8d0" stroke="#c8b89a" stroke-width="1"/>
+      <text x="110" y="22" text-anchor="middle" font-family="'Fira Mono'" font-size="11" fill="#1a5c6b">Virtual Space</text>
+      <rect x="40" y="40" width="140" height="34" rx="2" fill="#1a5c6b"/>
+      <text x="110" y="62" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">Stack</text>
+      <rect x="40" y="82" width="140" height="34" rx="2" fill="#2a8fa3" opacity="0.7"/>
+      <text x="110" y="104" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">Heap</text>
+      <rect x="40" y="124" width="140" height="34" rx="2" fill="#8b3a1a" opacity="0.8"/>
+      <text x="110" y="146" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">Data Segment</text>
+      <rect x="40" y="166" width="140" height="34" rx="2" fill="#c8922a" opacity="0.8"/>
+      <text x="110" y="188" text-anchor="middle" fill="#1a1209" font-family="'Fira Mono'" font-size="10">Code Segment</text>
+      <rect x="40" y="208" width="140" height="30" rx="2" fill="#4a4a2a" opacity="0.6"/>
+      <text x="110" y="228" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">Kernel Space</text>
+
+      <!-- MMU in center -->
+      <rect x="222" y="110" width="100" height="60" rx="4" fill="#1a1209"/>
+      <text x="272" y="136" text-anchor="middle" fill="#c8922a" font-family="'Fira Mono'" font-size="11" font-weight="bold">MMU</text>
+      <text x="272" y="153" text-anchor="middle" fill="rgba(200,146,42,0.6)" font-family="'Fira Mono'" font-size="9">Page Table</text>
+      <!-- arrows to MMU -->
+      <line x1="180" y1="140" x2="222" y2="140" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="322" y1="140" x2="380" y2="140" stroke="#c8922a" stroke-width="1.5"/>
+
+      <!-- Physical RAM -->
+      <rect x="380" y="30" width="90" height="130" rx="4" fill="#1a5c6b" opacity="0.9"/>
+      <text x="425" y="22" text-anchor="middle" font-family="'Fira Mono'" font-size="11" fill="#1a5c6b">RAM</text>
+      <rect x="388" y="40" width="74" height="22" rx="2" fill="rgba(200,146,42,0.5)"/>
+      <text x="425" y="56" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Frame 0</text>
+      <rect x="388" y="68" width="74" height="22" rx="2" fill="rgba(200,146,42,0.5)"/>
+      <text x="425" y="84" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Frame 1</text>
+      <rect x="388" y="96" width="74" height="22" rx="2" fill="rgba(200,146,42,0.5)"/>
+      <text x="425" y="112" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Frame 2</text>
+      <rect x="388" y="124" width="74" height="26" rx="2" fill="rgba(200,146,42,0.3)"/>
+      <text x="425" y="141" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="'Fira Mono'" font-size="9">Free</text>
+
+      <!-- Disk -->
+      <rect x="380" y="178" width="90" height="72" rx="4" fill="#4a4a2a"/>
+      <text x="425" y="200" text-anchor="middle" fill="rgba(200,146,42,0.8)" font-family="'Fira Mono'" font-size="10">SWAP</text>
+      <text x="425" y="220" text-anchor="middle" fill="rgba(200,146,42,0.5)" font-family="'Fira Mono'" font-size="9">Disk Pages</text>
+      <text x="425" y="238" text-anchor="middle" fill="rgba(200,146,42,0.5)" font-family="'Fira Mono'" font-size="9">(Virtual)</text>
+
+      <!-- swap arrow -->
+      <path d="M 425 162 L 425 178" stroke="rgba(200,146,42,0.5)" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <text x="430" y="172" fill="rgba(200,146,42,0.5)" font-family="'Fira Mono'" font-size="9">swap</text>
+
+      <!-- Labels -->
+      <text x="490" y="96" fill="#6b5e4a" font-family="'EB Garamond'" font-size="13" font-style="italic">Physical</text>
+      <text x="490" y="112" fill="#6b5e4a" font-family="'EB Garamond'" font-size="13" font-style="italic">Memory</text>
+    </svg>
+  </div>
+
+  <h2>I/O Management</h2>
+  <p>The OS manages peripherals or input/output devices by abstracting hardware interactions via device drivers, which act as translators between the OS and hardware devices. This architecture allows the OS to send commands to printers, disk drives, and network devices without applications needing to understand the intricate details of each device's operation. The OS employs techniques such as buffering and caching to optimize performance in data transfer operations.</p>
+
+  <h2>Virtual Memory</h2>
+  <p>Virtual memory allows programs to use more memory than is physically available on the computer. Parts of the program are stored on the hard disk and are loaded into physical memory as needed. This increases the range of applications that can be run, without being limited by physical memory. The OS creates the illusion of a virtually unlimited amount of memory for the user.</p>
+</div>
+<div class="page-num">— 26 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 6 — PROCESS & MEMORY MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div id="ch6" class="chapter-header">
+  <div class="ch-number">Chapter Six</div>
+  <h1 class="ch-title">Process &amp; Memory <em>Management</em></h1>
+  <p class="ch-lead">Every running program is a living process — born, scheduled, synchronised, and terminated in a perpetual dance orchestrated by the operating system kernel.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">Process management is a fundamental responsibility of an operating system (OS) that focuses on the efficient handling and scheduling of processes. At its core, a process is a program in execution, and the management of these processes is crucial for optimizing system performance and ensuring user interactivity. The OS employs various strategies for multitasking, allowing multiple processes to appear as if they are executed simultaneously, despite the limitations of physical hardware.</p>
+
+  <h2>Process States</h2>
+
+  <!-- Process State Diagram SVG -->
+  <div class="diagram-wrap">
+    <div class="diagram-title">Figure 6.1 — Process State Transition Diagram</div>
+    <svg viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;display:block;margin:0 auto;">
+      <defs>
+        <marker id="arr3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#c8922a"/>
+        </marker>
+      </defs>
+      <!-- States -->
+      <circle cx="80" cy="130" r="42" fill="#1a1209" stroke="#c8922a" stroke-width="1.5"/>
+      <text x="80" y="126" text-anchor="middle" fill="#c8922a" font-family="'Fira Mono'" font-size="11">NEW</text>
+      <text x="80" y="142" text-anchor="middle" fill="rgba(200,146,42,0.5)" font-family="'Fira Mono'" font-size="9">Created</text>
+
+      <circle cx="230" cy="80" r="42" fill="#1a5c6b" stroke="#2a8fa3" stroke-width="1.5"/>
+      <text x="230" y="76" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">READY</text>
+      <text x="230" y="92" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-family="'Fira Mono'" font-size="9">Waiting CPU</text>
+
+      <circle cx="380" cy="130" r="42" fill="#8b3a1a" stroke="#c8922a" stroke-width="2"/>
+      <text x="380" y="126" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">RUNNING</text>
+      <text x="380" y="142" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-family="'Fira Mono'" font-size="9">On CPU</text>
+
+      <circle cx="230" cy="190" r="42" fill="#4a4a2a" stroke="#c8b89a" stroke-width="1.5"/>
+      <text x="230" y="186" text-anchor="middle" fill="rgba(240,232,208,0.8)" font-family="'Fira Mono'" font-size="10">WAITING</text>
+      <text x="230" y="202" text-anchor="middle" fill="rgba(240,232,208,0.4)" font-family="'Fira Mono'" font-size="9">I/O / Event</text>
+
+      <circle cx="520" cy="130" r="42" fill="#2a2a2a" stroke="#6b5e4a" stroke-width="1.5"/>
+      <text x="520" y="126" text-anchor="middle" fill="rgba(240,232,208,0.6)" font-family="'Fira Mono'" font-size="10">TERMINATED</text>
+      <text x="520" y="142" text-anchor="middle" fill="rgba(240,232,208,0.3)" font-family="'Fira Mono'" font-size="9">Done</text>
+
+      <!-- Transition arrows -->
+      <path d="M 120 118 Q 175 90 188 88" stroke="#c8922a" stroke-width="1.5" fill="none" marker-end="url(#arr3)"/>
+      <text x="148" y="97" fill="#c8922a" font-family="'Fira Mono'" font-size="9">admit</text>
+
+      <path d="M 270 88 Q 330 80 340 108" stroke="#c8922a" stroke-width="1.5" fill="none" marker-end="url(#arr3)"/>
+      <text x="300" y="82" fill="#c8922a" font-family="'Fira Mono'" font-size="9">dispatch</text>
+
+      <path d="M 340 108 Q 290 60 270 80" stroke="rgba(200,146,42,0.5)" stroke-width="1" fill="none" marker-end="url(#arr3)"/>
+      <text x="308" y="68" fill="rgba(200,146,42,0.5)" font-family="'Fira Mono'" font-size="9">preempt</text>
+
+      <path d="M 360 168 Q 300 200 270 192" stroke="#c8922a" stroke-width="1.5" fill="none" marker-end="url(#arr3)"/>
+      <text x="330" y="198" fill="#c8922a" font-family="'Fira Mono'" font-size="9">I/O wait</text>
+
+      <path d="M 270 178 Q 310 180 340 158" stroke="rgba(200,146,42,0.5)" stroke-width="1" fill="none" marker-end="url(#arr3)"/>
+      <text x="298" y="174" fill="rgba(200,146,42,0.5)" font-family="'Fira Mono'" font-size="9">I/O done</text>
+
+      <path d="M 420 118 L 478 118" stroke="#c8922a" stroke-width="1.5" fill="none" marker-end="url(#arr3)"/>
+      <text x="448" y="112" fill="#c8922a" font-family="'Fira Mono'" font-size="9">exit</text>
+    </svg>
+  </div>
+
+  <p>There are five active states in which a process can be. The process could be in the new state, ready to be given some CPU time, running on the CPU, waiting for some I/O completion, or in the last state, terminated. Transitions between these states are taken based on several events. A process can enter the waiting state if it makes a system call that requires I/O. The process of switching between the different states is called a context switch.</p>
+
+  <h2>Inter-Process Communication (IPC)</h2>
+  <p>Process management also enables processes to communicate with each other in situations where several processes make use of the same resources. The various synchronization tools — for example semaphores, mutexes, and message passing — prevent race conditions where several processes access the same data at the same time.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>IPC Method</th>
+          <th>Mechanism</th>
+          <th>Use Case</th>
+          <th>Performance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Shared Memory</td>
+          <td>Common memory region accessed by multiple processes</td>
+          <td>High-speed data exchange on same host</td>
+          <td>Very High</td>
+        </tr>
+        <tr>
+          <td>Message Queues</td>
+          <td>OS-managed queues for passing messages</td>
+          <td>Decoupled producer-consumer</td>
+          <td>Moderate</td>
+        </tr>
+        <tr>
+          <td>Semaphores</td>
+          <td>Integer counters for synchronization</td>
+          <td>Mutual exclusion, resource counting</td>
+          <td>High</td>
+        </tr>
+        <tr>
+          <td>Pipes</td>
+          <td>Unidirectional byte stream</td>
+          <td>Shell pipelines, parent-child IPC</td>
+          <td>Moderate</td>
+        </tr>
+        <tr>
+          <td>Sockets</td>
+          <td>Network-style endpoints</td>
+          <td>Inter-machine and local communication</td>
+          <td>Moderate</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 6.1 — Inter-Process Communication Methods</p>
+  </div>
+
+  <h2>Memory Protection &amp; Allocation</h2>
+  <p>Operating systems implement isolation mechanisms between processes to prevent them from inadvertently or maliciously accessing each other's memory spaces. This is critical in a multi-user or multi-tasking environment. Protection mechanisms often include hardware support, such as Memory Management Units (MMUs) that enforce access controls on memory regions using base and limit registers to define permissible access boundaries for each process.</p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>Paging</h4>
+      <p>Memory divided into fixed-size blocks (pages). OS maps virtual pages to physical frames. Eliminates external fragmentation.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Segmentation</h4>
+      <p>Memory divided into variable-size segments (code, data, stack). Each segment has a base address and length.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Garbage Collection</h4>
+      <p>Automatic reclamation of unreachable memory in managed languages. Prevents memory leaks and dangling pointers.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Buffer Overflow Protection</h4>
+      <p>Stack canaries, ASLR, and DEP/NX bits prevent exploitation of memory boundary violations.</p>
+    </div>
+  </div>
+</div>
+<div class="page-num">— 33 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 7 — FILE SYSTEM
+════════════════════════════════════════════════════════════ -->
+<div id="ch7" class="chapter-header">
+  <div class="ch-number">Chapter Seven</div>
+  <h1 class="ch-title">File System <em>Management</em></h1>
+  <p class="ch-lead">The file system is the eternal librarian of computing — cataloguing, organizing, protecting, and serving data at the intersection of persistence and accessibility.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The management of files on a computer is another very important aspect of the Operating System. The file system provides an interface by which applications can store and retrieve files from the hard drives of a computer. The basic unit of information in a file system is a file — a block of computer storage that contains information such as text, images, or programs. Files are typically organized in a hierarchical tree-like structure, starting from the root directory.</p>
+
+  <h2>File System Hierarchy</h2>
+  <!-- File tree SVG -->
+  <div class="diagram-wrap">
+    <div class="diagram-title">Figure 7.1 — Hierarchical File System Structure</div>
+    <svg viewBox="0 0 560 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;display:block;margin:0 auto;">
+      <!-- Root -->
+      <rect x="240" y="20" width="80" height="32" rx="4" fill="#c8922a"/>
+      <text x="280" y="41" text-anchor="middle" fill="#1a1209" font-family="'Fira Mono'" font-size="12" font-weight="bold">/ (root)</text>
+
+      <!-- Level 1 branches -->
+      <line x1="280" y1="52" x2="100" y2="90" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="280" y1="52" x2="200" y2="90" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="280" y1="52" x2="300" y2="90" stroke="#c8922a" stroke-width="1.5"/>
+      <line x1="280" y1="52" x2="420" y2="90" stroke="#c8922a" stroke-width="1.5"/>
+
+      <rect x="60" y="90" width="80" height="28" rx="3" fill="#1a5c6b"/>
+      <text x="100" y="109" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">bin/</text>
+
+      <rect x="160" y="90" width="80" height="28" rx="3" fill="#1a5c6b"/>
+      <text x="200" y="109" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">etc/</text>
+
+      <rect x="260" y="90" width="80" height="28" rx="3" fill="#1a5c6b"/>
+      <text x="300" y="109" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">home/</text>
+
+      <rect x="380" y="90" width="80" height="28" rx="3" fill="#1a5c6b"/>
+      <text x="420" y="109" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">var/</text>
+
+      <!-- Level 2 -->
+      <line x1="300" y1="118" x2="230" y2="158" stroke="#2a8fa3" stroke-width="1"/>
+      <line x1="300" y1="118" x2="340" y2="158" stroke="#2a8fa3" stroke-width="1"/>
+
+      <rect x="186" y="158" width="88" height="26" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="230" y="175" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">alice/</text>
+
+      <rect x="296" y="158" width="88" height="26" rx="3" fill="#2a8fa3" opacity="0.8"/>
+      <text x="340" y="175" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">bob/</text>
+
+      <!-- Level 3 files -->
+      <line x1="230" y1="184" x2="200" y2="218" stroke="#c8b89a" stroke-width="1"/>
+      <line x1="230" y1="184" x2="260" y2="218" stroke="#c8b89a" stroke-width="1"/>
+
+      <rect x="158" y="218" width="84" height="24" rx="2" fill="#4a4a2a"/>
+      <text x="200" y="234" text-anchor="middle" fill="rgba(240,232,208,0.8)" font-family="'Fira Mono'" font-size="10">docs/</text>
+
+      <rect x="218" y="218" width="84" height="24" rx="2" fill="#4a4a2a"/>
+      <text x="260" y="234" text-anchor="middle" fill="rgba(240,232,208,0.8)" font-family="'Fira Mono'" font-size="10">report.pdf</text>
+
+      <!-- Metadata box -->
+      <rect x="20" y="200" width="120" height="64" rx="3" fill="#f0e8d0" stroke="#c8b89a"/>
+      <text x="80" y="216" text-anchor="middle" fill="#1a5c6b" font-family="'Fira Mono'" font-size="9" font-weight="bold">File Metadata</text>
+      <text x="80" y="230" text-anchor="middle" fill="#6b5e4a" font-family="'Fira Mono'" font-size="8">Name · Size · Type</text>
+      <text x="80" y="244" text-anchor="middle" fill="#6b5e4a" font-family="'Fira Mono'" font-size="8">Owner · Permissions</text>
+      <text x="80" y="258" text-anchor="middle" fill="#6b5e4a" font-family="'Fira Mono'" font-size="8">Created · Modified</text>
+    </svg>
+  </div>
+
+  <h2>Storage Allocation Methods</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Allocation Method</th>
+          <th>Description</th>
+          <th>Advantages</th>
+          <th>Disadvantages</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Contiguous</td>
+          <td>Each file occupies a contiguous set of disk blocks</td>
+          <td>Fast sequential access; simple</td>
+          <td>External fragmentation; file size must be known</td>
+        </tr>
+        <tr>
+          <td>Linked</td>
+          <td>Each block contains a pointer to the next block</td>
+          <td>No fragmentation; easy to grow files</td>
+          <td>Random access slow; pointer overhead</td>
+        </tr>
+        <tr>
+          <td>Indexed</td>
+          <td>Index block holds all data block pointers</td>
+          <td>Supports random access; no external fragmentation</td>
+          <td>Index block overhead; large files need multi-level indexes</td>
+        </tr>
+        <tr>
+          <td>Inode-based</td>
+          <td>Metadata stored in inodes with block pointers</td>
+          <td>Efficient; used in ext4, APFS, ZFS</td>
+          <td>Complex implementation</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 7.1 — File System Storage Allocation Strategies</p>
+  </div>
+
+  <h2>File Security &amp; Permissions</h2>
+  <p>Security is a prominent concern within file system management. The operating system implements stringent access control mechanisms to regulate who can read, modify, or delete files. This is typically achieved through permission settings and user authentication, ensuring that sensitive data is safeguarded against unauthorized access. Through these security protocols, the file system functions not merely as a passive repository of data, but as an active participant in the protection of the integrity and confidentiality of the user's information.</p>
+
+  <div class="infobox">
+    <div class="infobox-title">★ Major File Systems in Use Today</div>
+    <p><strong>NTFS (Windows)</strong> — Supports file permissions, encryption (EFS), journaling, and large volumes.</p>
+    <p><strong>ext4 (Linux)</strong> — Journaling, extents-based allocation, large file support, widely used in Linux distributions.</p>
+    <p><strong>APFS (macOS/iOS)</strong> — Optimized for SSDs; supports encryption, snapshots, and cloning.</p>
+    <p><strong>ZFS</strong> — Copy-on-write, data integrity verification, RAID-Z, pooled storage.</p>
+    <p><strong>FAT32/exFAT</strong> — Universal compatibility for removable drives; limited permissions.</p>
+  </div>
+</div>
+<div class="page-num">— 42 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 8 — SECURITY
+════════════════════════════════════════════════════════════ -->
+<div id="ch8" class="chapter-header">
+  <div class="ch-number">Chapter Eight</div>
+  <h1 class="ch-title">Security in <em>Operating Systems</em></h1>
+  <p class="ch-lead">In an era of escalating cyber threats, the operating system stands as the first and most critical line of defense — a sentinel guarding every bit, every process, every user.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The Operating System (OS) plays a crucial role as it acts as an intermediary between the user and the computer hardware. Given the fact that many programs run on the computer at any given time, the OS must ensure that each program uses the hardware in a safe and efficient manner. Thus, the Operating System plays a critical security role in protecting the computer system, any associated data, and other resources against unauthorized access, use, or harm.</p>
+
+  <div class="figure">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/KEV_stack.svg/400px-KEV_stack.svg.png" alt="Security Layers" style="background:white;padding:12px;max-width:320px;" onerror="this.style.display='none'">
+  </div>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <p>User Authentication is the first line of defence. This process of verifying who users are is crucial to protecting their accounts and data from unauthorized access. Most operating systems today support several forms of authentication, including the typical login name and password. Since passwords are subject to many security risks, many systems now implement multi-factor authentication (MFA).</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Security Layer</th>
+          <th>Mechanism</th>
+          <th>Examples</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Authentication</td>
+          <td>Verifying the identity of a user or process</td>
+          <td>Password, Biometrics, Smart Cards, MFA</td>
+        </tr>
+        <tr>
+          <td>Authorization (DAC)</td>
+          <td>Discretionary Access Control — owner sets permissions</td>
+          <td>Unix file permissions (rwx), Windows ACL</td>
+        </tr>
+        <tr>
+          <td>Authorization (MAC)</td>
+          <td>Mandatory Access Control — OS enforces policy hierarchy</td>
+          <td>SELinux, AppArmor, Bell-LaPadula model</td>
+        </tr>
+        <tr>
+          <td>Authorization (RBAC)</td>
+          <td>Role-Based Access Control — permissions tied to roles</td>
+          <td>Windows RBAC, Linux groups</td>
+        </tr>
+        <tr>
+          <td>Memory Protection</td>
+          <td>Process isolation via MMU, ASLR, DEP/NX</td>
+          <td>Windows DEP, Linux ASLR</td>
+        </tr>
+        <tr>
+          <td>Encryption</td>
+          <td>Data encryption at rest and in transit</td>
+          <td>BitLocker, FileVault, TLS, dm-crypt</td>
+        </tr>
+        <tr>
+          <td>Auditing</td>
+          <td>Logging and monitoring of system activity</td>
+          <td>Windows Event Log, Linux syslog, auditd</td>
+        </tr>
+        <tr>
+          <td>Firewall / IDS</td>
+          <td>Network traffic filtering &amp; intrusion detection</td>
+          <td>iptables, Windows Defender Firewall, Snort</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 8.1 — OS Security Mechanisms by Layer</p>
+  </div>
+
+  <h2>Common Security Vulnerabilities</h2>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>Buffer Overflow</h4>
+      <p>Exploits the difference between allocated buffer size and actual data input, potentially overwriting adjacent memory to execute arbitrary code.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Injection Attacks</h4>
+      <p>Inserting untrusted data into commands (SQL injection, OS command injection, LDAP injection) that are then interpreted as instructions.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Privilege Escalation</h4>
+      <p>Attacker gains root/administrator privileges by exploiting vulnerabilities in authentication or access control mechanisms.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Malware &amp; Rootkits</h4>
+      <p>Malicious software that infiltrates the OS, potentially hiding itself at the kernel level and persisting across reboots.</p>
+    </div>
+  </div>
+
+  <div class="pullquote">
+    Modern operating systems take a multi-layered approach to security — because no single mechanism is ever sufficient against the full spectrum of contemporary threats.
+  </div>
+
+  <h2>Mitigation Strategies</h2>
+  <p>To combat vulnerabilities, operating systems deploy a variety of mitigation strategies. One foundational strategy involves regular software updates and patch management. As developers identify vulnerabilities, timely updates can mitigate the risk of exploitation. The principle of least privilege is another key strategy — restricting users and applications to only those privileges necessary to complete their tasks. Secure coding practices, input validation, output encoding, and sandboxing complement these measures.</p>
+</div>
+<div class="page-num">— 49 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 9 — SYSTEM CALLS & APIs
+════════════════════════════════════════════════════════════ -->
+<div id="ch9" class="chapter-header">
+  <div class="ch-number">Chapter Nine</div>
+  <h1 class="ch-title">System Calls <em>&amp; APIs</em></h1>
+  <p class="ch-lead">System calls are the whispered requests of userland to the sovereign kernel — the formal language through which applications negotiate for the resources they need.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">System calls are an integral mechanism that facilitates communication between user programs and the operating system (OS), functioning as the interface through which applications request services from the underlying OS. This operational framework is central to the architecture of modern operating systems. System calls serve as a kind of interface between users and the OS that allows a program to issue service requests using a fixed, pre-defined API and parameter list.</p>
+
+  <h2>Categories of System Calls</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Purpose</th>
+          <th>Common Calls (POSIX)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Process Management</td>
+          <td>Create, execute, and terminate processes</td>
+          <td><code>fork()</code>, <code>exec()</code>, <code>exit()</code>, <code>wait()</code></td>
+        </tr>
+        <tr>
+          <td>File Management</td>
+          <td>Open, read, write, and close files</td>
+          <td><code>open()</code>, <code>read()</code>, <code>write()</code>, <code>close()</code></td>
+        </tr>
+        <tr>
+          <td>Device Management</td>
+          <td>Request and release physical/virtual devices</td>
+          <td><code>ioctl()</code>, <code>read()</code>, <code>write()</code></td>
+        </tr>
+        <tr>
+          <td>Information</td>
+          <td>Get/set system time, process attributes</td>
+          <td><code>getpid()</code>, <code>alarm()</code>, <code>gettimeofday()</code></td>
+        </tr>
+        <tr>
+          <td>Communication</td>
+          <td>Inter-process communication, networking</td>
+          <td><code>pipe()</code>, <code>socket()</code>, <code>send()</code>, <code>recv()</code></td>
+        </tr>
+        <tr>
+          <td>Memory</td>
+          <td>Allocate/deallocate memory, manage virtual address space</td>
+          <td><code>brk()</code>, <code>mmap()</code>, <code>munmap()</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 9.1 — System Call Categories and Common POSIX Examples</p>
+  </div>
+
+  <h2>Application Programming Interfaces (APIs)</h2>
+  <p>Application programming interfaces (APIs) of an operating system enable applications to communicate with the OS as well as with other applications. The APIs of an operating system make it possible for applications to access all resources of a computer while hiding the details of accessing hardware and managing resources. The design of APIs in an OS is often very systematic, with goals of increasing modularity, maintainability, and scalability.</p>
+
+  <div class="infobox">
+    <div class="infobox-title">★ The System Call Execution Flow</div>
+    <p><strong>1. User Application</strong> calls a library function (e.g., <code>printf()</code>)</p>
+    <p><strong>2. C Library</strong> invokes the system call trap instruction (e.g., <code>syscall</code> on x86-64)</p>
+    <p><strong>3. Mode Switch</strong> — CPU transitions from User Mode to Kernel Mode</p>
+    <p><strong>4. Kernel</strong> validates parameters, performs the operation (e.g., writes to file descriptor)</p>
+    <p><strong>5. Return</strong> — result returned to user space; mode switches back to User Mode</p>
+  </div>
+
+  <p>APIs also have a positive impact on the software development ecosystem, allowing for many innovative applications to be designed. Third-party developers can design their own applications which utilize the OS APIs efficiently, fostering a vibrant community of diverse software that runs on top of the operating system. By providing standardized interfaces, operating systems ensure portability across hardware generations and encourage broad software compatibility.</p>
+</div>
+<div class="page-num">— 57 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 10 — SPECIALIZED OS
+════════════════════════════════════════════════════════════ -->
+<div id="ch10" class="chapter-header">
+  <div class="ch-number">Chapter Ten</div>
+  <h1 class="ch-title">Specialized OS: RTOS, Distributed <em>&amp; Mobile</em></h1>
+  <p class="ch-lead">Beyond the desktop lies a vast ecosystem of specialized operating systems — each finely tuned for the demands of real-time response, distributed computing, or the constraints of mobile devices.</p>
+</div>
+
+<div class="page">
+  <h2>Real-Time Operating Systems (RTOS)</h2>
+  <p class="drop-cap">Real-Time Operating Systems (RTOS) are focused on meeting very high requirements with respect to real-time processing. These systems are required to deal with applications in which timely execution of events and processing of information in real time is a priority. They are used in a wide variety of applications ranging from car control systems to medical equipment and industrial automation processes.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>RTOS</th>
+          <th>General-Purpose OS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Scheduling</td>
+          <td>Deterministic; priority-based (RMS, EDF)</td>
+          <td>Best-effort; fairness-oriented</td>
+        </tr>
+        <tr>
+          <td>Latency</td>
+          <td>Microsecond-level guarantees</td>
+          <td>Variable; millisecond range</td>
+        </tr>
+        <tr>
+          <td>Memory</td>
+          <td>Fixed allocation; no dynamic MM</td>
+          <td>Dynamic allocation; GC</td>
+        </tr>
+        <tr>
+          <td>Use Cases</td>
+          <td>Automotive ECU, medical devices, robotics</td>
+          <td>Desktop, server, cloud workloads</td>
+        </tr>
+        <tr>
+          <td>Examples</td>
+          <td>FreeRTOS, VxWorks, QNX, RTEMS</td>
+          <td>Linux, Windows, macOS</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 10.1 — RTOS vs. General-Purpose OS</p>
+  </div>
+
+  <h2>Distributed Operating Systems</h2>
+  <p>Distributed operating systems (DOS) manage a group of stand-alone computers in a network and treat them as if they formed a single supercomputer. A distributed operating system abstracts distributed computing, allowing users to use computers as if they were a single, monolithic system. The CAP theorem states that a distributed system can only fulfill two of three objectives: Consistency, Availability, and Partition tolerance.</p>
+
+  <h2>Mobile Operating Systems</h2>
+  <p>Mobile Operating Systems must manage hardware and software components while being extremely energy efficient and running on devices with limited processing power, memory, and storage. The two most widely used mobile OS are Android and iOS. Both have adopted micro-kernel-like architectures for their kernels. Mobile OSes also feature unique security models, such as Android's permission-based access control and iOS's sandboxing.</p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>Android (Google)</h4>
+      <p>Linux-based; open source; permission-based app model; runs on 70%+ of smartphones. Uses ART runtime.</p>
+    </div>
+    <div class="feature-card">
+      <h4>iOS / iPadOS (Apple)</h4>
+      <p>Unix-based (XNU kernel); closed ecosystem; strict sandboxing; tight hardware-software integration.</p>
+    </div>
+  </div>
+
+  <div class="section-divider"><span class="divider-ornament">❧</span></div>
+
+  <div class="infobox">
+    <div class="infobox-title">★ Internet of Things (IoT) Operating Systems</div>
+    <p>All operating systems are being developed to work with the growing number of devices connected in the IoT. The OS of the computer must now manage a large number of devices of different types. New lightweight operating systems are being developed that can operate in constrained environments with limited CPU, RAM, and power budgets. Examples include Contiki-NG, TinyOS, Zephyr, and FreeRTOS — each designed for specific IoT profiles.</p>
+  </div>
+</div>
+<div class="page-num">— 63 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 11 — VIRTUALIZATION & CLOUD
+════════════════════════════════════════════════════════════ -->
+<div id="ch11" class="chapter-header">
+  <div class="ch-number">Chapter Eleven</div>
+  <h1 class="ch-title">Virtualization <em>&amp; Cloud Computing</em></h1>
+  <p class="ch-lead">Virtualization shatters the physical constraints of hardware — one machine becomes many, one cloud becomes infinite, and the OS evolves into the conductor of a boundless orchestra.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">Virtualization, the abstraction of hardware resources to support multiple operating environments, represents a new dimension in the evolution of operating system architecture. At the core of virtualization is the hypervisor or Virtual Machine Monitor (VMM). The hypervisor is a software layer that sits between the hardware and the guest operating systems (GOSs) running on top of it.</p>
+
+  <!-- Virtualization Diagram SVG -->
+  <div class="diagram-wrap">
+    <div class="diagram-title">Figure 11.1 — Type 1 vs. Type 2 Hypervisors</div>
+    <svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;display:block;margin:0 auto;">
+      <!-- Type 1 -->
+      <text x="140" y="18" text-anchor="middle" font-family="'Playfair Display'" font-size="14" font-weight="bold" fill="#1a5c6b">Type 1 (Bare Metal)</text>
+      <!-- Hardware -->
+      <rect x="20" y="258" width="240" height="32" rx="3" fill="#1a1209"/>
+      <text x="140" y="279" text-anchor="middle" fill="#c8922a" font-family="'Fira Mono'" font-size="11">PHYSICAL HARDWARE</text>
+      <!-- Hypervisor -->
+      <rect x="20" y="214" width="240" height="36" rx="3" fill="#8b3a1a"/>
+      <text x="140" y="237" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">HYPERVISOR (VMM)</text>
+      <!-- VMs -->
+      <rect x="20" y="100" width="104" height="108" rx="3" fill="#1a5c6b"/>
+      <text x="72" y="120" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">VM 1</text>
+      <rect x="30" y="128" width="84" height="24" rx="2" fill="rgba(200,146,42,0.5)"/>
+      <text x="72" y="144" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Guest OS A</text>
+      <rect x="30" y="158" width="84" height="38" rx="2" fill="rgba(200,146,42,0.3)"/>
+      <text x="72" y="181" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Apps</text>
+
+      <rect x="136" y="100" width="104" height="108" rx="3" fill="#1a5c6b"/>
+      <text x="188" y="120" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="10">VM 2</text>
+      <rect x="146" y="128" width="84" height="24" rx="2" fill="rgba(200,146,42,0.5)"/>
+      <text x="188" y="144" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Guest OS B</text>
+      <rect x="146" y="158" width="84" height="38" rx="2" fill="rgba(200,146,42,0.3)"/>
+      <text x="188" y="181" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Apps</text>
+
+      <!-- Type 2 -->
+      <text x="450" y="18" text-anchor="middle" font-family="'Playfair Display'" font-size="14" font-weight="bold" fill="#1a5c6b">Type 2 (Hosted)</text>
+      <rect x="330" y="258" width="240" height="32" rx="3" fill="#1a1209"/>
+      <text x="450" y="279" text-anchor="middle" fill="#c8922a" font-family="'Fira Mono'" font-size="11">PHYSICAL HARDWARE</text>
+      <rect x="330" y="214" width="240" height="36" rx="3" fill="#1a5c6b"/>
+      <text x="450" y="237" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">HOST OS</text>
+      <rect x="330" y="170" width="240" height="36" rx="3" fill="#8b3a1a"/>
+      <text x="450" y="193" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="11">HYPERVISOR (App)</text>
+      <!-- VMs -->
+      <rect x="330" y="60" width="104" height="104" rx="3" fill="#4a4a2a"/>
+      <text x="382" y="80" text-anchor="middle" fill="rgba(240,232,208,0.8)" font-family="'Fira Mono'" font-size="10">VM 1</text>
+      <rect x="340" y="88" width="84" height="24" rx="2" fill="rgba(200,146,42,0.4)"/>
+      <text x="382" y="104" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Guest OS</text>
+      <rect x="340" y="118" width="84" height="34" rx="2" fill="rgba(200,146,42,0.2)"/>
+      <text x="382" y="139" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="'Fira Mono'" font-size="9">Apps</text>
+
+      <rect x="446" y="60" width="104" height="104" rx="3" fill="#4a4a2a"/>
+      <text x="498" y="80" text-anchor="middle" fill="rgba(240,232,208,0.8)" font-family="'Fira Mono'" font-size="10">VM 2</text>
+      <rect x="456" y="88" width="84" height="24" rx="2" fill="rgba(200,146,42,0.4)"/>
+      <text x="498" y="104" text-anchor="middle" fill="white" font-family="'Fira Mono'" font-size="9">Guest OS</text>
+      <rect x="456" y="118" width="84" height="34" rx="2" fill="rgba(200,146,42,0.2)"/>
+      <text x="498" y="139" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="'Fira Mono'" font-size="9">Apps</text>
+
+      <!-- Divider -->
+      <line x1="300" y1="20" x2="300" y2="290" stroke="#c8b89a" stroke-width="1" stroke-dasharray="4 4"/>
+    </svg>
+  </div>
+
+  <h2>Cloud Computing &amp; OS Evolution</h2>
+  <p>The rise of cloud computing has demanded an evolution in OS architecture, particularly in managing resources in virtualized environments. Traditional operating systems primarily focused on local hardware management. With cloud technologies, these systems need to extend their capabilities to handle distributed resources effectively. Virtualization enables multiple virtual environments to be created and run on a single physical server, with each virtual machine making use of hardware resources in a controlled and managed fashion.</p>
+
+  <h2>Containerization</h2>
+  <p>Containerization has become a paradigm shift in how applications are deployed, managed, and executed. Containers run on top of a host operating system, sharing that host's kernel but running in their own isolated user space. As such, containers are much more resource-efficient than virtual machines and can be started and stopped in a fraction of a second. Technologies like Docker and Kubernetes represent the current state of the art in container management.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Virtual Machines</th>
+          <th>Containers</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Isolation</td>
+          <td>Full hardware virtualization</td>
+          <td>OS-level (namespace) isolation</td>
+        </tr>
+        <tr>
+          <td>Startup Time</td>
+          <td>Minutes</td>
+          <td>Milliseconds to seconds</td>
+        </tr>
+        <tr>
+          <td>Resource Usage</td>
+          <td>High (full OS per VM)</td>
+          <td>Low (shared kernel)</td>
+        </tr>
+        <tr>
+          <td>Security</td>
+          <td>Strong isolation</td>
+          <td>Good; kernel shared — attack surface exists</td>
+        </tr>
+        <tr>
+          <td>Use Case</td>
+          <td>Multi-OS environments</td>
+          <td>Microservices, CI/CD pipelines</td>
+        </tr>
+        <tr>
+          <td>Examples</td>
+          <td>VMware ESXi, Hyper-V, KVM</td>
+          <td>Docker, Podman, LXC</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 11.1 — Virtual Machines vs. Containers</p>
+  </div>
+</div>
+<div class="page-num">— 72 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 12 — CASE STUDIES
+════════════════════════════════════════════════════════════ -->
+<div id="ch12" class="chapter-header">
+  <div class="ch-number">Chapter Twelve</div>
+  <h1 class="ch-title">Case Studies: <em>Windows, Linux &amp; macOS</em></h1>
+  <p class="ch-lead">Three great operating systems — each a different philosophy of how computing ought to work, each a triumph of engineering and human creativity.</p>
+</div>
+
+<div class="page">
+  <h2>Microsoft Windows</h2>
+  <p class="drop-cap">The kernel of the Windows operating system is typically called the executive, which functions in two modes: user mode and kernel mode. User mode functions restrict usage of hardware by applications and services. Only system services function in kernel mode and can access hardware. Running in kernel mode alleviates the possibility of causing severe damage to the operating system and enhances system reliability.</p>
+
+  <div class="infobox">
+    <div class="infobox-title">★ Windows Architecture Highlights</div>
+    <p><strong>Kernel (Executive)</strong> — Process/thread management, memory management, security reference monitor</p>
+    <p><strong>Windows API</strong> — Abstracts hardware complexity; enables portability across Windows versions</p>
+    <p><strong>User Account Control (UAC)</strong> — Limits standard user actions; requires elevation for sensitive operations</p>
+    <p><strong>NTFS File System</strong> — ACL-based permissions, journaling, encryption (EFS), large volume support</p>
+    <p><strong>GUI (Windows Shell)</strong> — Desktop, Start menu, taskbar; also supports PowerShell CLI</p>
+  </div>
+
+  <div class="section-divider"><span class="divider-ornament">❧</span></div>
+
+  <h2>Linux</h2>
+  <p>Linux is an open-source operating system that was created by Linus Torvalds in 1991 and is currently developed by a global community. The architecture of Linux is based upon a monolithic kernel. The services provided by the OS are executed in kernel space. The monolithic architecture is efficient and fast because it does not require any inter-process communication between the different services of the OS.</p>
+
+  <p>A key feature of the Linux architecture is its customizability. The entire kernel may be compiled with only the components required for a given application — providing optimal use of available system resources. Linux supports a host of user interfaces including GNOME, KDE, XFCE, and many others, making it suitable for use from embedded systems to supercomputers.</p>
+
+  <div class="section-divider"><span class="divider-ornament">❧</span></div>
+
+  <h2>Apple macOS</h2>
+  <p>The macOS operating system is based on Unix, providing performance and security of a Unix system. It is a multi-user system with excellent process management. The kernel is called XNU (X is Not Unix), which is a hybrid architecture combining Mach microkernel features with BSD subsystems. This architecture allows for high performance as well as good multitasking.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Windows</th>
+          <th>Linux</th>
+          <th>macOS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Kernel Type</td>
+          <td>Hybrid (NT Executive)</td>
+          <td>Monolithic</td>
+          <td>Hybrid (XNU/Mach + BSD)</td>
+        </tr>
+        <tr>
+          <td>Open Source</td>
+          <td>No</td>
+          <td>Yes (GPL)</td>
+          <td>Partial (Darwin)</td>
+        </tr>
+        <tr>
+          <td>Primary UI</td>
+          <td>Windows Shell (GUI)</td>
+          <td>Multiple (GNOME, KDE, etc.)</td>
+          <td>Aqua (GUI) + zsh CLI</td>
+        </tr>
+        <tr>
+          <td>File System</td>
+          <td>NTFS</td>
+          <td>ext4, Btrfs, ZFS</td>
+          <td>APFS</td>
+        </tr>
+        <tr>
+          <td>Security Model</td>
+          <td>UAC, Windows Defender</td>
+          <td>SELinux, AppArmor</td>
+          <td>Gatekeeper, SIP, FileVault</td>
+        </tr>
+        <tr>
+          <td>Target Audience</td>
+          <td>Enterprise, Consumer</td>
+          <td>Servers, Developers, Embedded</td>
+          <td>Creative Professionals, Developers</td>
+        </tr>
+        <tr>
+          <td>Market Share</td>
+          <td>~70% desktop</td>
+          <td>~96% servers</td>
+          <td>~15% desktop</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 12.1 — Windows, Linux, and macOS: A Comparative Overview</p>
+  </div>
+</div>
+<div class="page-num">— 80 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAPTER 13 — EMERGING TRENDS
+════════════════════════════════════════════════════════════ -->
+<div id="ch13" class="chapter-header">
+  <div class="ch-number">Chapter Thirteen</div>
+  <h1 class="ch-title">Emerging Trends <em>&amp; Future Directions</em></h1>
+  <p class="ch-lead">The operating system of tomorrow will be intelligent, adaptive, distributed, and deeply secure — shaped by AI, quantum hardware, and the relentless demands of a connected world.</p>
+</div>
+
+<div class="page">
+  <p class="drop-cap">The landscape of operating systems is changing at a breakneck speed, and they are constantly evolving to adapt to emerging trends in the field of information technologies, especially in the context of cloud computing, virtualization, security, and user experience. Today's operating systems are designed not only to support a variety of emerging information technologies but also to maximize user experience and satisfaction.</p>
+
+  <h2>Key Emerging Trends</h2>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>AI-Integrated OS</h4>
+      <p>Operating systems incorporating machine learning for adaptive scheduling, predictive resource allocation, and real-time threat detection and response.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Zero-Trust Architecture</h4>
+      <p>Every access request treated as a potential threat regardless of source. Security decisions made at every layer of the OS stack.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Cloud-Native OS</h4>
+      <p>Operating systems designed from the ground up for cloud environments — distributing workloads across data centers with elastic scaling.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Natural Language UI</h4>
+      <p>Conversational and voice-driven interfaces reducing barriers between human intent and computer action — making computing truly accessible.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Augmented Reality Integration</h4>
+      <p>OS-level support for spatial computing, AR/VR overlays, and immersive interfaces blurring the line between physical and digital environments.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Open Source Expansion</h4>
+      <p>Community-driven OS development gaining momentum, enabling greater customization, transparency, and collaborative security response.</p>
+    </div>
+  </div>
+
+  <div class="pullquote">
+    The future operating system will not merely manage resources — it will intelligently anticipate needs, adapt to threats in real time, and evolve continuously through the contributions of a global community.
+  </div>
+
+  <h2>Power Management &amp; Sustainability</h2>
+  <p>Operating systems are increasingly incorporating sophisticated power management strategies. Dynamic Voltage and Frequency Scaling (DVFS) enables processors to run at different power levels as required by applications. When a system is under low load, processor cores can be powered down to save energy. When an application requires more processing power, the OS can raise the processing frequency. Energy-aware scheduling algorithms ensure full CPU utilization while minimizing wasted energy.</p>
+
+  <h2>Multithreading &amp; Concurrency</h2>
+  <p>Multithreading and concurrency have become cornerstones for improved performance in current operating systems. Multithreading involves enabling a large number of threads of execution to run on available processor cores. By enabling these threads to run in parallel, the concept of multithreading in conjunction with concurrency helps tap the potential of modern multi-core hardware to improve overall system performance.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Trend</th>
+          <th>Current Status</th>
+          <th>OS Impact</th>
+          <th>Timeline</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AI/ML in OS Kernel</td>
+          <td>Research &amp; early adoption</td>
+          <td>Adaptive scheduling, anomaly detection</td>
+          <td>2025–2030</td>
+        </tr>
+        <tr>
+          <td>Zero-Trust OS</td>
+          <td>Emerging standard</td>
+          <td>Every syscall verified; least-privilege by default</td>
+          <td>2024–2027</td>
+        </tr>
+        <tr>
+          <td>Serverless / Edge OS</td>
+          <td>Active development</td>
+          <td>Ultra-lightweight kernels for edge nodes</td>
+          <td>Ongoing</td>
+        </tr>
+        <tr>
+          <td>Quantum-Ready OS</td>
+          <td>Early research</td>
+          <td>Post-quantum cryptography, qubit scheduling</td>
+          <td>2030+</td>
+        </tr>
+        <tr>
+          <td>Natural Language UI</td>
+          <td>Consumer products (Siri, Cortana)</td>
+          <td>Voice-first system interaction</td>
+          <td>Ongoing</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Table 13.1 — Emerging OS Trends: Status and Timeline</p>
+  </div>
+
+  <h2>Updates, Patches &amp; Continuous Evolution</h2>
+  <p>It is critical to install all the latest updates for an operating system and apply all relevant patches to ensure a computing system remains secure and functional. An effective update management strategy that ensures timely installation of updates and patches is essential. Patches address security vulnerabilities, fix bugs, add new hardware support, and improve performance — making them a continuous and non-negotiable aspect of OS lifecycle management.</p>
+</div>
+<div class="page-num">— 89 —</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     REFERENCES
+════════════════════════════════════════════════════════════ -->
+<div id="refs" class="citations">
+  <h2>References &amp; Bibliography</h2>
+
+  <p class="citation-entry">Alavi, M., &amp; Leidner, D. E. (2001). Knowledge management and knowledge management systems: Conceptual foundations and research issues. <em>MIS Quarterly, 25</em>(1), 107–136.</p>
+  <p class="citation-entry">Bazuku, R., Anab, A., Gyemerah, S., &amp; Mohammed, I. D. (2023). An overview of computer operating systems and emerging trends. <em>Computer Law Review and Technology Journal</em>, Forthcoming.</p>
+  <p class="citation-entry">Chakraborty, P. (2023). <em>Operating Systems: Evolutionary Concepts and Modern Design Principles.</em> Chapman and Hall/CRC.</p>
+  <p class="citation-entry">Coulouris, G. F., Dollimore, J., &amp; Kindberg, T. (2005). <em>Distributed systems: concepts and design.</em> Pearson Education.</p>
+  <p class="citation-entry">Eckert, M., Meyer, D., Haase, J., &amp; Klauer, B. (2016). Operating system concepts for reconfigurable computing: review and survey. <em>International Journal of Reconfigurable Computing, 2016</em>(1), 2478907.</p>
+  <p class="citation-entry">Hansen, P. B. (1973). <em>Operating system principles.</em> Prentice-Hall, Inc.</p>
+  <p class="citation-entry">Merseedi, K. J. (2021). A comprehensive study of kernel (issues and concepts) in different operating systems. <em>Asian Journal of Research in Computer Science.</em></p>
+  <p class="citation-entry">Naghibzadeh, M. (2005). <em>Operating System: Concepts and Techniques.</em> IUniverse.</p>
+  <p class="citation-entry">O'Regan, G. (2018). Overview of Operating Systems. In <em>World of Computing: A Primer Companion for the Digital Age</em> (pp. 203–215). Cham: Springer International Publishing.</p>
+  <p class="citation-entry">Rammig, F., Ditze, M., Janacik, P., Heimfarth, T., Kerstan, T., Oberthuer, S., &amp; Stahl, K. (2009). Basic concepts of real time operating systems. <em>Hardware-dependent Software,</em> 15–45.</p>
+  <p class="citation-entry">Rawat, V. (2025). A brief study on operating systems along with their history, types, working, challenges and advancements. DOI: https://doi.org/10.5281/zenodo.15869774.</p>
+  <p class="citation-entry">Robertson, L. (1990). <em>Introduction to operating systems.</em></p>
+  <p class="citation-entry">Silberschatz, A., Galvin, P. B., &amp; Gagne, G. (2006). <em>Operating system concepts, Windows XP update.</em> John Wiley &amp; Sons.</p>
+  <p class="citation-entry">Silberschatz, A., Korth, H. F., &amp; Sudarshan, S. (2002). <em>Database system concepts</em> (Vol. 5). McGraw-Hill.</p>
+  <p class="citation-entry">Sinha, P. K. (1998). <em>Distributed operating systems: concepts and design.</em> PHI Learning Pvt. Ltd.</p>
+  <p class="citation-entry">Stallings, W. (2018). <em>Operating systems: internals and design principles.</em> Pearson Education Limited.</p>
+  <p class="citation-entry">Stevens, W. R., &amp; Narten, T. (1990). UNIX network programming. <em>ACM SIGCOMM Computer Communication Review, 20</em>(2), 8–9.</p>
+  <p class="citation-entry">Tanenbaum, A. S., &amp; Bos, H. (2015). <em>Modern operating systems.</em> Pearson Education, Inc.</p>
+</div>
+
+<!-- Back Cover -->
+<div class="book-cover" style="min-height:300px;justify-content:center;gap:16px;">
+  <div class="cover-border"></div>
+  <p style="font-family:'Fira Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;">Academic Press · Computer Science Series</p>
+  <p style="font-family:'Playfair Display',serif;font-size:28px;font-style:italic;color:var(--paper);">OS Architecture Unveiled</p>
+  <div class="cover-rule"></div>
+  <p style="font-family:'EB Garamond',serif;font-size:15px;color:rgba(240,232,208,0.5);max-width:500px;text-align:center;line-height:1.7;">A comprehensive study of operating system design, architecture, components, security, and the emerging trends shaping the future of computing.</p>
+</div>
+
+</body>
+</html>
